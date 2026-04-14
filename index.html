@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>WriteCoach 作文辅助</title>
+<style>
+/* ==================== Reset & Variables ==================== */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --primary:#6366f1;--primary-light:#818cf8;--primary-dark:#4f46e5;
+  --success:#22c55e;--warning:#f59e0b;--danger:#ef4444;
+  --bg:#f8fafc;--card:#fff;--text:#1e293b;--text2:#64748b;--text3:#94a3b8;
+  --border:#e2e8f0;--radius:12px;--shadow:0 1px 3px rgba(0,0,0,.08);
+  --shadow-lg:0 4px 20px rgba(0,0,0,.12);
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB',sans-serif;background:var(--bg);color:var(--text);line-height:1.6;min-height:100vh}
+a{color:var(--primary);text-decoration:none}
+button{cursor:pointer;border:none;font-family:inherit;font-size:inherit}
+input,textarea,select{font-family:inherit;font-size:inherit}
+
+/* ==================== Layout ==================== */
+.app{max-width:480px;margin:0 auto;min-height:100vh;background:var(--card);position:relative;overflow-x:hidden}
+.page{display:none;padding:0 0 80px 0;min-height:100vh}
+.page.active{display:block}
+.page-header{padding:16px 20px;background:var(--primary);color:#fff;position:sticky;top:0;z-index:100}
+.page-header h2{font-size:18px;font-weight:600}
+.page-header .back-btn{background:none;color:#fff;font-size:22px;margin-right:8px;vertical-align:middle}
+.page-content{padding:20px}
+
+/* ==================== Buttons ==================== */
+.btn{display:inline-flex;align-items:center;justify-content:center;padding:12px 24px;border-radius:8px;font-weight:600;transition:all .2s}
+.btn-primary{background:var(--primary);color:#fff}.btn-primary:hover{background:var(--primary-dark)}
+.btn-outline{background:transparent;color:var(--primary);border:2px solid var(--primary)}.btn-outline:hover{background:var(--primary);color:#fff}
+.btn-success{background:var(--success);color:#fff}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-block{width:100%;display:flex}
+.btn-sm{padding:8px 16px;font-size:13px}
+.btn-lg{padding:14px 28px;font-size:16px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* ==================== Forms ==================== */
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px}
+.form-group input,.form-group textarea,.form-group select{width:100%;padding:12px;border:2px solid var(--border);border-radius:8px;font-size:15px;transition:border-color .2s;background:#fff}
+.form-group input:focus,.form-group textarea:focus,.form-group select:focus{outline:none;border-color:var(--primary)}
+.form-group textarea{resize:vertical;min-height:100px}
+.form-hint{font-size:12px;color:var(--text3);margin-top:4px}
+.form-error{font-size:12px;color:var(--danger);margin-top:4px;display:none}
+
+/* ==================== Cards ==================== */
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;margin-bottom:16px;border:1px solid var(--border)}
+.card-title{font-size:16px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+
+/* ==================== Landing Page ==================== */
+.landing{text-align:center;padding:60px 20px 40px}
+.landing-logo{font-size:64px;margin-bottom:16px}
+.landing h1{font-size:28px;font-weight:800;margin-bottom:8px;color:var(--text)}
+.landing .slogan{font-size:16px;color:var(--text2);margin-bottom:40px}
+.landing .features{text-align:left;margin:32px 0}
+.feature-item{display:flex;gap:16px;padding:16px 0;border-bottom:1px solid var(--border)}
+.feature-item:last-child{border-bottom:none}
+.feature-icon{font-size:32px;flex-shrink:0;width:48px;text-align:center}
+.feature-text h3{font-size:15px;font-weight:700;margin-bottom:4px}
+.feature-text p{font-size:13px;color:var(--text2)}
+.landing-actions{display:flex;flex-direction:column;gap:12px;margin-top:32px}
+
+/* ==================== Tab Bar ==================== */
+.tab-bar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#fff;border-top:1px solid var(--border);display:flex;z-index:200;padding:8px 0 env(safe-area-inset-bottom)}
+.tab-item{flex:1;text-align:center;padding:6px 0;color:var(--text3);font-size:11px;transition:color .2s}
+.tab-item.active{color:var(--primary)}
+.tab-item .tab-icon{font-size:22px;display:block;margin-bottom:2px}
+
+/* ==================== Dashboard ==================== */
+.welcome-banner{background:linear-gradient(135deg,var(--primary),var(--primary-light));color:#fff;border-radius:var(--radius);padding:24px;margin-bottom:20px}
+.welcome-banner h2{font-size:20px;margin-bottom:4px}
+.welcome-banner p{opacity:.85;font-size:14px}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px}
+.stat-card{background:var(--card);border-radius:var(--radius);padding:16px;text-align:center;border:1px solid var(--border)}
+.stat-num{font-size:28px;font-weight:800;color:var(--primary)}
+.stat-label{font-size:12px;color:var(--text2);margin-top:4px}
+.new-write-btn{background:linear-gradient(135deg,var(--primary),#8b5cf6);color:#fff;border-radius:var(--radius);padding:20px;text-align:center;margin-bottom:20px;box-shadow:var(--shadow-lg);font-size:18px;font-weight:700;width:100%}
+.new-write-btn:active{transform:scale(.98)}
+.history-item{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--border)}
+.history-item:last-child{border-bottom:none}
+.history-title{font-weight:600;font-size:15px}
+.history-meta{font-size:12px;color:var(--text3);margin-top:2px}
+.history-score{font-size:20px;font-weight:800;color:var(--primary)}
+.section-title{font-size:15px;font-weight:700;color:var(--text);margin-bottom:12px;display:flex;align-items:center;gap:6px}
+
+/* ==================== Write Page ==================== */
+.lang-switch{display:flex;gap:0;margin-bottom:16px;border:2px solid var(--border);border-radius:8px;overflow:hidden}
+.lang-switch button{flex:1;padding:10px;background:#fff;color:var(--text2);font-weight:600;border:none;transition:all .2s}
+.lang-switch button.active{background:var(--primary);color:#fff}
+.mode-switch{display:flex;gap:12px;margin-bottom:20px}
+.mode-card{flex:1;padding:16px;border:2px solid var(--border);border-radius:var(--radius);text-align:center;cursor:pointer;transition:all .2s}
+.mode-card.active{border-color:var(--primary);background:#f0f0ff}
+.mode-card .mode-icon{font-size:28px;margin-bottom:8px}
+.mode-card .mode-name{font-size:14px;font-weight:700}
+.mode-card .mode-desc{font-size:11px;color:var(--text3);margin-top:4px}
+
+/* ==================== Guide Page (Chat UI) ==================== */
+.chat-container{padding:16px;padding-bottom:90px}
+.chat-bubble{max-width:85%;padding:14px 18px;border-radius:16px;margin-bottom:12px;line-height:1.7;font-size:14px;animation:fadeInUp .3s}
+.chat-bubble.ai{background:#f1f0ff;color:var(--text);border-bottom-left-radius:4px;margin-right:auto}
+.chat-bubble.user{background:var(--primary);color:#fff;border-bottom-right-radius:4px;margin-left:auto}
+.chat-bubble .q-item{margin:8px 0;padding:8px 12px;background:rgba(99,102,241,.08);border-radius:8px;cursor:pointer;transition:background .2s}
+.chat-bubble .q-item:hover{background:rgba(99,102,241,.15)}
+.chat-bubble .q-num{font-weight:700;color:var(--primary);margin-right:6px}
+.chat-input-bar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#fff;border-top:1px solid var(--border);padding:12px 16px env(safe-area-inset-bottom);display:flex;gap:8px;align-items:flex-end;z-index:200}
+.chat-input-bar textarea{flex:1;padding:10px 14px;border:2px solid var(--border);border-radius:20px;resize:none;max-height:120px;min-height:42px;font-size:14px;line-height:1.5}
+.chat-input-bar textarea:focus{border-color:var(--primary);outline:none}
+.chat-input-bar .send-btn{width:42px;height:42px;border-radius:50%;background:var(--primary);color:#fff;font-size:18px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.chat-input-bar .voice-btn{width:42px;height:42px;border-radius:50%;background:var(--border);color:var(--text2);font-size:18px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.chat-input-bar .voice-btn.recording{background:var(--danger);color:#fff;animation:pulse 1s infinite}
+.progress-indicator{text-align:center;padding:8px;font-size:12px;color:var(--text3)}
+.progress-bar-mini{height:4px;background:var(--border);border-radius:2px;margin:8px 20px;overflow:hidden}
+.progress-bar-mini .fill{height:100%;background:var(--primary);border-radius:2px;transition:width .5s}
+.skip-btn{display:block;margin:8px auto;color:var(--text3);font-size:13px;background:none;text-decoration:underline}
+
+/* ==================== Result Page ==================== */
+.result-section{margin-bottom:24px}
+.result-section h3{font-size:16px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.outline-item{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}
+.outline-item:last-child{border-bottom:none}
+.outline-num{width:28px;height:28px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
+.outline-text{font-size:14px}
+.outline-role{font-size:12px;color:var(--primary);font-weight:600}
+.sentence-card{background:#fefce8;border:1px solid #fef08a;border-radius:var(--radius);padding:14px;margin-bottom:12px}
+.sentence-text{font-size:15px;font-weight:600;color:var(--text);margin-bottom:8px;line-height:1.8}
+.sentence-meta{font-size:12px;color:var(--text2)}
+.sentence-meta span{display:inline-block;background:#fff;padding:2px 8px;border-radius:4px;margin-right:6px;margin-top:4px}
+.vocab-list{display:flex;flex-wrap:wrap;gap:8px}
+.vocab-tag{background:var(--primary);color:#fff;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:600}
+
+/* ==================== Review Report ==================== */
+.score-circle{width:120px;height:120px;border-radius:50%;background:linear-gradient(135deg,var(--primary),#8b5cf6);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;margin:0 auto 20px}
+.score-circle .score-num{font-size:42px;font-weight:800;line-height:1}
+.score-circle .score-label{font-size:12px;opacity:.8;margin-top:4px}
+.dim-bar{margin-bottom:12px}
+.dim-bar .dim-header{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px}
+.dim-bar .dim-name{font-weight:600}
+.dim-bar .dim-score{color:var(--primary);font-weight:700}
+.dim-bar .bar-bg{height:8px;background:var(--border);border-radius:4px;overflow:hidden}
+.dim-bar .bar-fill{height:100%;border-radius:4px;transition:width 1s}
+.highlight-item{padding:12px;background:#f0fdf4;border-left:3px solid var(--success);border-radius:0 8px 8px 0;margin-bottom:8px;font-size:14px}
+.suggestion-item{padding:12px;background:#fef3c7;border-left:3px solid var(--warning);border-radius:0 8px 8px 0;margin-bottom:8px;font-size:14px}
+.example-card{background:#f8fafc;border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px}
+.example-original{color:var(--danger);text-decoration:line-through;font-size:14px;margin-bottom:8px}
+.example-suggested{color:var(--success);font-size:14px;font-weight:600;margin-bottom:8px}
+.example-explain{font-size:12px;color:var(--text2)}
+.comparison-item{display:flex;align-items:center;gap:8px;padding:8px 0;font-size:14px}
+.comparison-up{color:var(--success);font-weight:700}
+.comparison-down{color:var(--danger);font-weight:700}
+
+/* ==================== Parent Dashboard ==================== */
+.child-card{display:flex;align-items:center;gap:16px;padding:16px;background:var(--card);border-radius:var(--radius);border:1px solid var(--border);margin-bottom:12px;cursor:pointer;transition:box-shadow .2s}
+.child-card:hover{box-shadow:var(--shadow-lg)}
+.child-avatar{width:48px;height:48px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700}
+.child-info h3{font-size:16px;font-weight:700}
+.child-info p{font-size:13px;color:var(--text2)}
+.radar-placeholder{width:100%;height:200px;background:linear-gradient(135deg,#f1f0ff,#fefce8);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;margin-bottom:16px;position:relative}
+.weakness-item{padding:12px;background:#fef2f2;border-left:3px solid var(--danger);border-radius:0 8px 8px 0;margin-bottom:8px}
+.weakness-item .weak-dim{font-weight:700;color:var(--danger)}
+.weakness-item .weak-advice{font-size:13px;color:var(--text2);margin-top:4px}
+.strength-item{padding:12px;background:#f0fdf4;border-left:3px solid var(--success);border-radius:0 8px 8px 0;margin-bottom:8px}
+.strength-item .str-dim{font-weight:700;color:var(--success)}
+
+/* ==================== Profile ==================== */
+.avatar-edit{width:80px;height:80px;border-radius:50%;background:var(--primary);color:#fff;font-size:36px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px}
+
+/* ==================== Animations ==================== */
+@keyframes fadeInUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+.typing-dots{display:inline-flex;gap:4px;padding:8px 0}
+.typing-dots span{width:8px;height:8px;border-radius:50%;background:var(--primary);animation:typing 1.4s infinite}
+.typing-dots span:nth-child(2){animation-delay:.2s}
+.typing-dots span:nth-child(3){animation-delay:.4s}
+@keyframes typing{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-4px)}}
+
+/* ==================== Toast ==================== */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--text);color:#fff;padding:12px 24px;border-radius:8px;font-size:14px;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+
+/* ==================== Responsive ==================== */
+@media(max-width:480px){.app{max-width:100%}}
+
+/* Radar chart canvas */
+.radar-canvas{width:100%;height:200px}
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <!-- ==================== Landing Page ==================== -->
+  <div class="page active" id="page-landing">
+    <div class="landing">
+      <div class="landing-logo">📝</div>
+      <h1>WriteCoach</h1>
+      <h1 style="font-size:20px;color:var(--text2);font-weight:400">作文辅助</h1>
+      <p class="slogan">「好作文是问出来的」</p>
+      <div class="features">
+        <div class="feature-item"><div class="feature-icon">💬</div><div class="feature-text"><h3>追问式辅导</h3><p>AI 通过提问引导你补充细节，写出生动的文章</p></div></div>
+        <div class="feature-item"><div class="feature-icon">📊</div><div class="feature-text"><h3>智能批改</h3><p>五维评分 + 修改建议，每篇作文都有进步方向</p></div></div>
+        <div class="feature-item"><div class="feature-icon">🎤</div><div class="feature-text"><h3>语音输入</h3><p>说出你的想法，微信浏览器完美兼容</p></div></div>
+        <div class="feature-item"><div class="feature-icon">🌍</div><div class="feature-text"><h3>中英双语</h3><p>中文作文 + 英文写作，一站搞定</p></div></div>
+        <div class="feature-item"><div class="feature-icon">👨‍👩‍👦</div><div class="feature-text"><h3>家长端</h3><p>查看写作进度，了解孩子薄弱点</p></div></div>
+      </div>
+      <div class="landing-actions">
+        <button class="btn btn-primary btn-block btn-lg" data-action="showPage" data-target="page-register">📮 邮箱注册</button>
+        <button class="btn btn-outline btn-block btn-lg" data-action="showPage" data-target="page-login">🔑 登录</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== Register Page ==================== -->
+  <div class="page" id="page-register">
+    <div class="page-header"><button class="back-btn" data-action="showPage" data-target="page-landing">←</button><h2 style="display:inline">注册账号</h2></div>
+    <div class="page-content">
+      <div class="form-group">
+        <label>选择角色</label>
+        <div class="lang-switch">
+          <button class="active" data-action="setRegRole" data-role="student">🎒 我是学生</button>
+          <button data-action="setRegRole" data-role="parent">👨‍👩‍👦 我是家长</button>
+        </div>
+      </div>
+      <div class="form-group"><label>邮箱</label><input type="email" id="reg-email" placeholder="输入邮箱地址"></div>
+      <div class="form-group"><label>密码</label><input type="password" id="reg-pwd" placeholder="至少6位密码"></div>
+      <div class="form-group"><label>用户名</label><input type="text" id="reg-name" placeholder="你的昵称"></div>
+      <div class="form-group" id="reg-grade-group"><label>年级</label><select id="reg-grade"><option value="3">三年级</option><option value="4">四年级</option><option value="5" selected>五年级</option><option value="6">六年级</option><option value="7">七年级（初一）</option><option value="8">八年级（初二）</option><option value="9">九年级（初三）</option><option value="10">高一</option><option value="11">高二</option><option value="12">高三</option></select></div>
+      <button class="btn btn-primary btn-block btn-lg" data-action="doRegister" style="margin-top:24px">注册</button>
+      <p style="text-align:center;margin-top:16px;font-size:14px;color:var(--text2)">已有账号？<a href="#" data-action="showPage" data-target="page-login">去登录</a></p>
+    </div>
+  </div>
+
+  <!-- ==================== Login Page ==================== -->
+  <div class="page" id="page-login">
+    <div class="page-header"><button class="back-btn" data-action="showPage" data-target="page-landing">←</button><h2 style="display:inline">登录</h2></div>
+    <div class="page-content">
+      <div class="form-group"><label>邮箱</label><input type="email" id="login-email" placeholder="输入邮箱地址"></div>
+      <div class="form-group"><label>密码</label><input type="password" id="login-pwd" placeholder="输入密码"></div>
+      <button class="btn btn-primary btn-block btn-lg" data-action="doLogin" style="margin-top:24px">登录</button>
+      <p style="text-align:center;margin-top:16px;font-size:14px;color:var(--text2)">没有账号？<a href="#" data-action="showPage" data-target="page-register">去注册</a></p>
+      <div style="margin-top:20px;padding:16px;background:#f1f0ff;border-radius:8px;font-size:13px;color:var(--text2)">
+        <strong>🎉 体验账号</strong><br>
+        学生：student@demo.com / 123456<br>
+        家长：parent@demo.com / 123456
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== Email Verify Page ==================== -->
+  <div class="page" id="page-verify">
+    <div class="page-content" style="text-align:center;padding-top:80px">
+      <div style="font-size:64px;margin-bottom:20px">📧</div>
+      <h2>验证邮箱</h2>
+      <p style="color:var(--text2);margin:12px 0">验证链接已发送到 <strong id="verify-email-show"></strong></p>
+      <p style="color:var(--text3);font-size:13px;margin-bottom:32px">（Demo 模式自动验证）</p>
+      <button class="btn btn-primary btn-lg" data-action="completeVerify">✅ 模拟验证完成</button>
+    </div>
+  </div>
+
+  <!-- ==================== Student Dashboard ==================== -->
+  <div class="page" id="page-dashboard">
+    <div class="page-header"><h2>📝 WriteCoach</h2></div>
+    <div class="page-content">
+      <div class="welcome-banner">
+        <h2 id="dash-welcome">你好，同学！</h2>
+        <p id="dash-grade-info"></p>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-num" id="stat-total">0</div><div class="stat-label">总篇数</div></div>
+        <div class="stat-card"><div class="stat-num" id="stat-avg">--</div><div class="stat-label">平均分</div></div>
+        <div class="stat-card"><div class="stat-num" id="stat-streak">0</div><div class="stat-label">连续天</div></div>
+      </div>
+      <button class="new-write-btn" data-action="showPage" data-target="page-new-write">✍️ 开始写作</button>
+      <div class="section-title">📋 历史记录</div>
+      <div id="history-list"><p style="text-align:center;color:var(--text3);padding:20px">还没有写过作文哦，开始第一篇吧！</p></div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab-item active" data-action="showPage" data-target="page-dashboard"><span class="tab-icon">🏠</span>首页</div>
+      <div class="tab-item" data-action="showPage" data-target="page-new-write"><span class="tab-icon">✍️</span>写作</div>
+      <div class="tab-item" data-action="showPage" data-target="page-profile"><span class="tab-icon">👤</span>我的</div>
+    </div>
+  </div>
+
+  <!-- ==================== New Write Page ==================== -->
+  <div class="page" id="page-new-write">
+    <div class="page-header"><button class="back-btn" data-action="showPage" data-target="page-dashboard">←</button><h2 style="display:inline">新建作文</h2></div>
+    <div class="page-content">
+      <div class="form-group">
+        <label>语言</label>
+        <div class="lang-switch">
+          <button class="active" data-action="setWriteLang" data-lang="zh">🇨🇳 中文</button>
+          <button data-action="setWriteLang" data-lang="en">🇬🇧 English</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>选择模式</label>
+        <div class="mode-switch">
+          <div class="mode-card active" data-action="setWriteMode" data-mode="guide"><div class="mode-icon">💬</div><div class="mode-name">辅导模式</div><div class="mode-desc">AI追问引导，帮你理清思路</div></div>
+          <div class="mode-card" data-action="setWriteMode" data-mode="review"><div class="mode-icon">📊</div><div class="mode-name">批改模式</div><div class="mode-desc">提交完整作文，获取批改报告</div></div>
+        </div>
+      </div>
+      <div class="form-group"><label>作文题目</label><input type="text" id="write-title" placeholder="输入题目或材料题"></div>
+      <div class="form-group"><label>体裁</label><select id="write-genre"><option value="narrative">记叙文</option><option value="argumentative">议论文</option><option value="expository">说明文</option><option value="prose">散文</option><option value="review">读后感</option><option value="letter">书信</option><option value="diary">日记</option></select></div>
+      <div class="form-group"><label>写作目的</label><input type="text" id="write-purpose" placeholder="想表达什么情感、抒发什么情绪？"><div class="form-hint">例如：表达对妈妈的感恩 / 批判校园浪费现象</div></div>
+      <div class="form-group" id="write-content-group"><label>主要内容</label><textarea id="write-content" placeholder="大致想写什么？关键事件或论点"></textarea></div>
+      <div class="form-group" id="write-fulltext-group" style="display:none"><label>作文全文</label><textarea id="write-fulltext" placeholder="把你写好的作文贴在这里..." style="min-height:200px"></textarea></div>
+      <div class="form-group"><label>字数要求</label><select id="write-wordlimit"><option value="400">400字</option><option value="600" selected>600字</option><option value="800">800字</option></select></div>
+      <button class="btn btn-primary btn-block btn-lg" data-action="startWrite" style="margin-top:16px">🚀 开始</button>
+    </div>
+  </div>
+
+  <!-- ==================== Guide Page (Chat) ==================== -->
+  <div class="page" id="page-guide">
+    <div class="page-header"><button class="back-btn" data-action="exitGuide">←</button><h2 style="display:inline" id="guide-title">辅导模式</h2></div>
+    <div class="progress-indicator" id="guide-progress">第 1 轮追问 / 共 3 轮</div>
+    <div class="progress-bar-mini"><div class="fill" id="guide-progress-fill" style="width:33%"></div></div>
+    <div class="chat-container" id="chat-container"></div>
+    <div class="chat-input-bar" id="chat-input-bar">
+      <textarea id="chat-input" rows="1" placeholder="输入你的回答..."></textarea>
+      <button class="voice-btn" id="voice-btn" data-action="toggleVoice">🎤</button>
+      <button class="send-btn" data-action="sendChatMsg">➤</button>
+    </div>
+  </div>
+
+  <!-- ==================== Result Page ==================== -->
+  <div class="page" id="page-result">
+    <div class="page-header"><button class="back-btn" data-action="showPage" data-target="page-dashboard">←</button><h2 style="display:inline">✨ 好句参考</h2></div>
+    <div class="page-content" id="result-content"></div>
+  </div>
+
+  <!-- ==================== Review Report Page ==================== -->
+  <div class="page" id="page-report">
+    <div class="page-header"><button class="back-btn" data-action="showPage" data-target="page-dashboard">←</button><h2 style="display:inline">📊 批改报告</h2></div>
+    <div class="page-content" id="report-content"></div>
+  </div>
+
+  <!-- ==================== Profile Page ==================== -->
+  <div class="page" id="page-profile">
+    <div class="page-header"><h2>👤 个人资料</h2></div>
+    <div class="page-content">
+      <div class="avatar-edit" id="profile-avatar">B</div>
+      <div class="form-group"><label>用户名</label><input type="text" id="profile-name"></div>
+      <div class="form-group"><label>邮箱</label><input type="email" id="profile-email" disabled></div>
+      <div class="form-group"><label>年级</label><select id="profile-grade"><option value="3">三年级</option><option value="4">四年级</option><option value="5">五年级</option><option value="6">六年级</option><option value="7">七年级</option><option value="8">八年级</option><option value="9">九年级</option><option value="10">高一</option><option value="11">高二</option><option value="12">高三</option></select></div>
+      <button class="btn btn-primary btn-block" data-action="saveProfile" style="margin-top:16px">💾 保存</button>
+      <button class="btn btn-danger btn-block" data-action="doLogout" style="margin-top:12px">🚪 退出登录</button>
+    </div>
+    <div class="tab-bar">
+      <div class="tab-item" data-action="showPage" data-target="page-dashboard"><span class="tab-icon">🏠</span>首页</div>
+      <div class="tab-item" data-action="showPage" data-target="page-new-write"><span class="tab-icon">✍️</span>写作</div>
+      <div class="tab-item active" data-action="showPage" data-target="page-profile"><span class="tab-icon">👤</span>我的</div>
+    </div>
+  </div>
+
+  <!-- ==================== Parent Dashboard ==================== -->
+  <div class="page" id="page-parent">
+    <div class="page-header"><h2>👨‍👩‍👦 家长端</h2></div>
+    <div class="page-content">
+      <div class="welcome-banner" style="background:linear-gradient(135deg,#8b5cf6,#a78bfa)">
+        <h2 id="parent-welcome">家长您好！</h2>
+        <p>实时了解孩子的写作成长</p>
+      </div>
+      <div class="section-title">👦 绑定的孩子</div>
+      <div id="parent-children-list"></div>
+      <button class="btn btn-outline btn-block btn-sm" data-action="bindChild" style="margin-top:8px">➕ 绑定孩子账号</button>
+
+      <div id="parent-child-detail" style="margin-top:24px;display:none">
+        <div class="section-title">📊 写作概览 — <span id="parent-child-name"></span></div>
+        <div class="stat-grid">
+          <div class="stat-card"><div class="stat-num" id="p-stat-total">5</div><div class="stat-label">总篇数</div></div>
+          <div class="stat-card"><div class="stat-num" id="p-stat-avg">76</div><div class="stat-label">平均分</div></div>
+          <div class="stat-card"><div class="stat-num" id="p-stat-trend">↑</div><div class="stat-label">趋势</div></div>
+        </div>
+
+        <div class="section-title">📈 能力雷达图</div>
+        <div class="radar-placeholder"><canvas id="radarCanvas" width="300" height="200"></canvas></div>
+
+        <div class="section-title">⚠️ 薄弱点分析</div>
+        <div class="weakness-item"><div class="weak-dim">内容充实 — 连续3篇低于70分</div><div class="weak-advice">建议：鼓励孩子多观察生活中的小细节，写日记记录每天一件小事</div></div>
+        <div class="weakness-item"><div class="weak-dim">语言表达 — 修辞手法运用不足</div><div class="weak-advice">建议：每周读一篇优秀作文，标注里面的比喻和排比句</div></div>
+
+        <div class="section-title">💪 进步亮点</div>
+        <div class="strength-item"><div class="str-dim">结构层次 — 最近两篇结构清晰，起承转合完整 ↑12分</div></div>
+        <div class="strength-item"><div class="str-dim">主题立意 — 立意越来越深刻，能联系现实 ↑8分</div></div>
+
+        <div class="section-title">📋 最近作文</div>
+        <div id="parent-works-list"></div>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab-item active"><span class="tab-icon">🏠</span>首页</div>
+      <div class="tab-item" data-action="showParentReport"><span class="tab-icon">📊</span>报告</div>
+      <div class="tab-item" data-action="showPage" data-target="page-parent-profile"><span class="tab-icon">👤</span>我的</div>
+    </div>
+  </div>
+
+  <!-- ==================== Parent Profile ==================== -->
+  <div class="page" id="page-parent-profile">
+    <div class="page-header"><h2>👤 家长设置</h2></div>
+    <div class="page-content">
+      <div class="avatar-edit">👨</div>
+      <div class="form-group"><label>用户名</label><input type="text" id="parent-profile-name"></div>
+      <div class="form-group"><label>邮箱</label><input type="email" id="parent-profile-email" disabled></div>
+      <div class="card"><div class="card-title">🔔 通知设置</div><label style="display:flex;align-items:center;gap:8px;font-size:14px"><input type="checkbox" checked> 每周日发送写作周报到邮箱</label></div>
+      <button class="btn btn-primary btn-block" data-action="parentSave">💾 保存</button>
+      <button class="btn btn-danger btn-block" data-action="doLogout" style="margin-top:12px">🚪 退出登录</button>
+    </div>
+    <div class="tab-bar">
+      <div class="tab-item" data-action="showPage" data-target="page-parent"><span class="tab-icon">🏠</span>首页</div>
+      <div class="tab-item"><span class="tab-icon">📊</span>报告</div>
+      <div class="tab-item active"><span class="tab-icon">👤</span>我的</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==================== State ====================
+let currentUser = null;
+let regRole = 'student';
+let writeLang = 'zh';
+let writeMode = 'guide';
+let currentComp = null;
+let guideRound = 0;
+let maxRounds = 3;
+let isRecording = false;
+
+// Demo data
+const demoUsers = {
+  'student@demo.com': {email:'student@demo.com',pwd:'123456',role:'student',name:'Bosco',grade:5},
+  'parent@demo.com': {email:'parent@demo.com',pwd:'123456',role:'parent',name:'Bosco爸爸',children:['student@demo.com']}
+};
+
+const demoHistory = [
+  {id:'h1',title:'那个下雨天',genre:'narrative',lang:'zh',mode:'guide',score:82,date:'2026-04-12',status:'completed'},
+  {id:'h2',title:'My Best Friend',genre:'narrative',lang:'en',mode:'review',score:78,date:'2026-04-10',status:'completed'},
+  {id:'h3',title:'校园里的那棵老树',genre:'prose',lang:'zh',mode:'guide',score:75,date:'2026-04-08',status:'completed'},
+  {id:'h4',title:'节约粮食，从我做起',genre:'argumentative',lang:'zh',mode:'review',score:71,date:'2026-04-05',status:'completed'},
+  {id:'h5',title:'A Trip to the Zoo',genre:'narrative',lang:'en',mode:'guide',score:68,date:'2026-04-02',status:'completed'}
+];
+
+const genreMap = {narrative:'记叙文',argumentative:'议论文',expository:'说明文',prose:'散文',review:'读后感',letter:'书信',diary:'日记'};
+
+// ==================== Navigation ====================
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+  if (id === 'page-dashboard') refreshDashboard();
+  if (id === 'page-profile') loadProfile();
+  if (id === 'page-parent') loadParent();
+}
+
+// ==================== Toast ====================
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ==================== Auth ====================
+function setRegRole(btn, role) {
+  btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  regRole = role;
+  document.getElementById('reg-grade-group').style.display = role === 'student' ? 'block' : 'none';
+}
+
+function doRegister() {
+  const email = document.getElementById('reg-email').value.trim();
+  const pwd = document.getElementById('reg-pwd').value;
+  const name = document.getElementById('reg-name').value.trim();
+  const grade = parseInt(document.getElementById('reg-grade').value);
+  if (!email || !pwd || !name) return toast('请填写完整信息');
+  if (pwd.length < 6) return toast('密码至少6位');
+  const user = {email, pwd, role: regRole, name, grade: regRole === 'student' ? grade : null};
+  localStorage.setItem('wc_user_' + email, JSON.stringify(user));
+  document.getElementById('verify-email-show').textContent = email;
+  showPage('page-verify');
+}
+
+function completeVerify() {
+  toast('验证成功！');
+  showPage('page-login');
+}
+
+function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pwd = document.getElementById('login-pwd').value;
+  if (!email || !pwd) return toast('请输入邮箱和密码');
+  let user = demoUsers[email];
+  if (!user && localStorage.getItem('wc_user_' + email)) {
+    user = JSON.parse(localStorage.getItem('wc_user_' + email));
+  }
+  if (!user || user.pwd !== pwd) return toast('邮箱或密码错误');
+  currentUser = user;
+  localStorage.setItem('wc_current', JSON.stringify(user));
+  if (user.role === 'parent') {
+    showPage('page-parent');
+  } else {
+    showPage('page-dashboard');
+  }
+  toast('欢迎回来，' + user.name + '！');
+}
+
+function doLogout() {
+  currentUser = null;
+  localStorage.removeItem('wc_current');
+  showPage('page-landing');
+  toast('已退出登录');
+}
+
+// ==================== Dashboard ====================
+function refreshDashboard() {
+  if (!currentUser) return;
+  document.getElementById('dash-welcome').textContent = '你好，' + currentUser.name + '！';
+  const gradeNames = {3:'三年级',4:'四年级',5:'五年级',6:'六年级',7:'初一',8:'初二',9:'初三',10:'高一',11:'高二',12:'高三'};
+  document.getElementById('dash-grade-info').textContent = (gradeNames[currentUser.grade] || '') + ' · 坚持写作，每天进步一点点';
+  const comps = getCompositions();
+  document.getElementById('stat-total').textContent = comps.length;
+  if (comps.length > 0) {
+    const avg = Math.round(comps.reduce((s,c) => s + (c.score||0), 0) / comps.length);
+    document.getElementById('stat-avg').textContent = avg;
+  }
+  document.getElementById('stat-streak').textContent = Math.min(comps.length, 7);
+  const listEl = document.getElementById('history-list');
+  if (comps.length === 0) {
+    listEl.innerHTML = '<p style="text-align:center;color:var(--text3);padding:20px">还没有写过作文哦，开始第一篇吧！</p>';
+    return;
+  }
+  listEl.innerHTML = comps.map(c => `<div class="history-item" data-action="viewHistory" data-id="${c.id}"><div><div class="history-title">${c.lang==='en'?'🇬🇧':'🇨🇳'} ${c.title}</div><div class="history-meta">${c.date} · ${genreMap[c.genre]||c.genre} · ${c.mode==='guide'?'辅导':'批改'}</div></div><div class="history-score">${c.score||'--'}</div></div>`).join('');
+}
+
+function getCompositions() {
+  const saved = localStorage.getItem('wc_comps_' + (currentUser?.email || ''));
+  return saved ? JSON.parse(saved) : demoHistory;
+}
+
+function saveComposition(comp) {
+  const comps = getCompositions();
+  comps.unshift(comp);
+  localStorage.setItem('wc_comps_' + currentUser.email, JSON.stringify(comps));
+}
+
+function viewHistory(id) {
+  const comps = getCompositions();
+  const c = comps.find(x => x.id === id);
+  if (!c) return;
+  if (c.mode === 'review') {
+    showReviewReport(c);
+  } else {
+    showGuideResult(c);
+  }
+}
+
+// ==================== Write Setup ====================
+function setWriteLang(btn, lang) {
+  btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  writeLang = lang;
+  const genreEl = document.getElementById('write-genre');
+  if (lang === 'en') {
+    genreEl.innerHTML = '<option value="narrative">Narrative</option><option value="argumentative">Argumentative</option><option value="descriptive">Descriptive</option><option value="letter">Letter/Email</option><option value="diary">Diary</option>';
+    document.getElementById('write-wordlimit').innerHTML = '<option value="80">80 words</option><option value="120" selected>120 words</option><option value="180">180 words</option><option value="250">250 words</option>';
+  } else {
+    genreEl.innerHTML = '<option value="narrative">记叙文</option><option value="argumentative">议论文</option><option value="expository">说明文</option><option value="prose">散文</option><option value="review">读后感</option><option value="letter">书信</option><option value="diary">日记</option>';
+    document.getElementById('write-wordlimit').innerHTML = '<option value="400">400字</option><option value="600" selected>600字</option><option value="800">800字</option>';
+  }
+}
+
+function setWriteMode(card, mode) {
+  card.parentElement.querySelectorAll('.mode-card').forEach(c => c.classList.remove('active'));
+  card.classList.add('active');
+  writeMode = mode;
+  document.getElementById('write-content-group').style.display = mode === 'guide' ? 'block' : 'none';
+  document.getElementById('write-fulltext-group').style.display = mode === 'review' ? 'block' : 'none';
+}
+
+function startWrite() {
+  const title = document.getElementById('write-title').value.trim();
+  if (!title) return toast('请输入作文题目');
+  currentComp = {
+    id: 'c' + Date.now(),
+    title, lang: writeLang, mode: writeMode,
+    genre: document.getElementById('write-genre').value,
+    purpose: document.getElementById('write-purpose').value.trim(),
+    content: document.getElementById('write-content').value.trim(),
+    fulltext: document.getElementById('write-fulltext').value.trim(),
+    wordlimit: document.getElementById('write-wordlimit').value,
+    date: new Date().toISOString().slice(0, 10)
+  };
+  if (writeMode === 'guide') {
+    guideRound = 0;
+    showPage('page-guide');
+    document.getElementById('guide-title').textContent = writeLang === 'en' ? 'Writing Guide' : '辅导模式';
+    document.getElementById('chat-container').innerHTML = '';
+    startGuideRound();
+  } else {
+    if (!currentComp.fulltext) return toast('请输入完整作文');
+    showPage('page-report');
+    generateReviewReport();
+  }
+}
+
+// ==================== Guide Mode (Chat) ====================
+const guideQuestions = {
+  zh: [
+    [
+      {dim:'五感细节', q:'这件事发生的时候，你周围是什么样的环境？有什么声音、气味或颜色让你印象深刻吗？'},
+      {dim:'情感变化', q:'想想事情刚开始的时候，你是什么心情？后来心情有没有变化？'},
+      {dim:'表情动作', q:'当时你或者文中的人物是什么表情？做了什么动作？比如手是不是在发抖？'}
+    ],
+    [
+      {dim:'内心独白', q:'那个关键时刻，你脑海里在想什么？有没有一个念头特别强烈？'},
+      {dim:'对话场景', q:'当时有没有什么对话？谁说了什么话让你记忆深刻？'},
+      {dim:'环境氛围', q:'那时候的天气、光线、周围的人群是什么样的？能帮你烘托氛围的细节？'}
+    ],
+    [
+      {dim:'对比反思', q:'经历这件事之前和之后，你有什么不一样的感受或想法？'},
+      {dim:'主题升华', q:'如果让你用一句话总结这件事给你的启示，你会怎么说？'},
+      {dim:'读者视角', q:'你觉得读者读到这篇作文时，最希望他们感受到什么？'}
+    ]
+  ],
+  en: [
+    [
+      {dim:'Sensory Details', q:'这件事发生的时候，你能用英语描述一下环境吗？比如天气、声音、味道？试试看！'},
+      {dim:'Feelings', q:'How did you feel at the beginning? 试着用2-3个英文形容词描述你的心情'},
+      {dim:'Actions', q:'What did you do at that moment? 用过去时描述一下你或主角的动作'}
+    ],
+    [
+      {dim:'Details', q:'能再具体一点吗？比如 What was he/she wearing? What did the place look like?'},
+      {dim:'Dialogue', q:'当时有没有对话？试着用英文写一两句 "..." said ...'},
+      {dim:'Transitions', q:'你打算怎么衔接这两段？试试 However / Then / After that / Meanwhile'}
+    ],
+    [
+      {dim:'Topic Sentence', q:'每段的中心句是什么？试着用一句英文概括这段要说什么'},
+      {dim:'Conclusion', q:'How would you end this essay? 想想给读者留下什么印象'},
+      {dim:'Vocabulary', q:'有没有哪些词你觉得太简单了？我帮你升级一下，比如 good → excellent, happy → delighted'}
+    ]
+  ]
+};
+
+function startGuideRound() {
+  guideRound++;
+  if (guideRound > maxRounds) {
+    generateGuideResult();
+    return;
+  }
+  updateGuideProgress();
+  const questions = guideQuestions[writeLang]?.[guideRound - 1] || guideQuestions.zh[0];
+  setTimeout(() => {
+    addTypingIndicator();
+    setTimeout(() => {
+      removeTypingIndicator();
+      let greeting = '';
+      if (guideRound === 1) {
+        greeting = writeLang === 'en'
+          ? `好的！你想写关于<strong>「${currentComp.title}」</strong>的英文作文。让我通过几个问题帮你丰富内容 😊\n\n`
+          : `好的！你想写<strong>「${currentComp.title}」</strong>。让我通过几个问题帮你回忆更多细节 😊\n\n`;
+      } else {
+        greeting = guideRound === 2
+          ? (writeLang === 'en' ? '很好！你的回答很棒 👍 我再深入问几个问题：\n\n' : '很好！你的素材越来越丰富了 👍 我再深入问几个：\n\n')
+          : (writeLang === 'en' ? '最后一轮啦！我们来完善一下整体结构 🎯\n\n' : '最后一轮啦！我们来做一些升华和总结 🎯\n\n');
+      }
+      let qHtml = questions.map((q, i) => `<div class="q-item" data-action="selectQuestion"><span class="q-num">❓${i+1}</span> ${q.q}</div>`).join('');
+      addAIBubble(greeting + qHtml);
+    }, 1200);
+  }, 300);
+}
+
+function updateGuideProgress() {
+  document.getElementById('guide-progress').textContent = `第 ${guideRound} 轮追问 / 共 ${maxRounds} 轮`;
+  document.getElementById('guide-progress-fill').style.width = (guideRound / maxRounds * 100) + '%';
+}
+
+function selectQuestion(el, q) {
+  document.getElementById('chat-input').value = '';
+  document.getElementById('chat-input').placeholder = '针对这个问题，说说你的想法...';
+  el.style.background = 'rgba(99,102,241,.2)';
+}
+
+function addAIBubble(html) {
+  const container = document.getElementById('chat-container');
+  const div = document.createElement('div');
+  div.className = 'chat-bubble ai';
+  div.innerHTML = html;
+  container.appendChild(div);
+  scrollChatBottom();
+}
+
+function addUserBubble(text) {
+  const container = document.getElementById('chat-container');
+  const div = document.createElement('div');
+  div.className = 'chat-bubble user';
+  div.textContent = text;
+  container.appendChild(div);
+  scrollChatBottom();
+}
+
+function addTypingIndicator() {
+  const container = document.getElementById('chat-container');
+  const div = document.createElement('div');
+  div.className = 'chat-bubble ai';
+  div.id = 'typing-indicator';
+  div.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+  container.appendChild(div);
+  scrollChatBottom();
+}
+
+function removeTypingIndicator() {
+  const el = document.getElementById('typing-indicator');
+  if (el) el.remove();
+}
+
+function scrollChatBottom() {
+  setTimeout(() => window.scrollTo(0, document.body.scrollHeight), 100);
+}
+
+function sendChatMsg() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  addUserBubble(text);
+  input.value = '';
+  input.style.height = '42px';
+
+  // Simulate AI response & next round
+  setTimeout(() => {
+    addTypingIndicator();
+    setTimeout(() => {
+      removeTypingIndicator();
+      const encouragements = writeLang === 'en'
+        ? ['Great details! 这些细节太好了！', 'Wonderful! 我能感受到那个场景了 🎉', 'Perfect! 你的描述越来越具体了 ✨']
+        : ['写得真好！这些细节太生动了 🎉', '太棒了！我已经能想象出那个画面了 ✨', '很好的素材！这些内容让文章丰富多了 👏'];
+      const enc = encouragements[guideRound - 1] || encouragements[0];
+      addAIBubble(enc);
+      setTimeout(() => startGuideRound(), 800);
+    }, 1000);
+  }, 300);
+}
+
+function autoResize(el) {
+  el.style.height = '42px';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+function exitGuide() {
+  if (confirm('确定退出辅导吗？当前进度不会保存')) showPage('page-dashboard');
+}
+
+// ==================== Voice Input ====================
+function toggleVoice() {
+  const btn = document.getElementById('voice-btn');
+  if (isRecording) {
+    isRecording = false;
+    btn.classList.remove('recording');
+    btn.textContent = '🎤';
+    // Simulate speech-to-text
+    setTimeout(() => {
+      const demoTexts = writeLang === 'en'
+        ? ['I remember it was a sunny day, and I felt very happy...', 'My friend told me something important that changed my mind...']
+        : ['那天下着小雨，我站在校门口等妈妈来接我...', '我当时心里特别紧张，手心都是汗...'];
+      const text = demoTexts[Math.floor(Math.random() * demoTexts.length)];
+      document.getElementById('chat-input').value = text;
+      autoResize(document.getElementById('chat-input'));
+      toast('语音识别完成，可编辑后发送');
+    }, 500);
+  } else {
+    isRecording = true;
+    btn.classList.add('recording');
+    btn.textContent = '⏹';
+    toast('正在录音...');
+  }
+}
+
+// ==================== Guide Result ====================
+function generateGuideResult() {
+  const isEn = currentComp.lang === 'en';
+  // Show loading
+  addTypingIndicator();
+  setTimeout(() => {
+    removeTypingIndicator();
+    addAIBubble(isEn
+      ? '三轮追问完成！我已经根据你提供的素材，整理好了写作提纲和好句参考。点击下方按钮查看 👇'
+      : '三轮追问完成！🎉 我已经根据你提供的所有素材，整理好了写作提纲和好句参考。点击下方按钮查看 👇');
+
+    // Add result button
+    const container = document.getElementById('chat-container');
+    const btn = document.createElement('div');
+    btn.style.cssText = 'text-align:center;padding:16px';
+    btn.innerHTML = '<button class="btn btn-primary btn-lg" data-action="showGuideResultPage">✨ 查看好句参考</button>';
+    container.appendChild(btn);
+    scrollChatBottom();
+
+    // Save composition
+    currentComp.score = Math.floor(Math.random() * 15) + 72;
+    currentComp.status = 'completed';
+    saveComposition(currentComp);
+  }, 2000);
+}
+
+function showGuideResultPage() {
+  showPage('page-result');
+  showGuideResult(currentComp);
+}
+
+function showGuideResult(comp) {
+  const isEn = comp.lang === 'en';
+  const resultEl = document.getElementById('result-content');
+
+  const outlineData = isEn ? [
+    {role:'Opening', point:'Start with an interesting scene or question to grab the reader\'s attention'},
+    {role:'Body 1', point:'Describe the main event with sensory details (sight, sound, smell)'},
+    {role:'Body 2', point:'Show your feelings and inner thoughts during the key moment'},
+    {role:'Body 3', point:'Describe how others reacted and what they said'},
+    {role:'Conclusion', point:'Reflect on what you learned and end with a meaningful sentence'}
+  ] : [
+    {role:'开头', point:'用环境描写开篇，营造氛围——那天的天气、校园的样子'},
+    {role:'起因', point:'交代事件的起因，设置悬念'},
+    {role:'经过', point:'重点描写关键场景——动作、表情、对话、内心独白'},
+    {role:'高潮', point:'情感爆发点——最打动人的那个瞬间'},
+    {role:'结尾', point:'点题升华，从具体事件上升到人生感悟'}
+  ];
+
+  const sentenceData = isEn ? [
+    {text:'The autumn wind whispered through the golden leaves, carrying with it the sweet scent of ripe apples.', rhetoric:'Personification + Sensory Details', position:'Opening paragraph'},
+    {text:'Her eyes sparkled like morning stars, and her smile could light up the darkest room.', rhetoric:'Simile + Imagery', position:'Body - describing a person'},
+    {text:'At that moment, I realized that true friendship is not about being inseparable, but about being separated and nothing changes.', rhetoric:'Contrast + Reflection', position:'Conclusion'}
+  ] : [
+    {text:'雨丝像一根根银针，密密麻麻地织在校门口昏黄的灯光里。', rhetoric:'比喻 + 细节描写', position:'第一段·营造氛围'},
+    {text:'妈妈的伞歪向了我这边，而她的左肩早已被淋成了深色。', rhetoric:'动作细节 + 对比', position:'第三段·表现母爱'},
+    {text:'我鼻子一酸，眼眶里像装满了一个热水壶，随时要溢出来。', rhetoric:'比喻 + 心理描写', position:'第四段·情感高潮'},
+    {text:'原来，爱从来不需要惊天动地，它就藏在那把歪斜的伞下。', rhetoric:'哲理句 + 点题', position:'第五段·结尾升华'}
+  ];
+
+  const vocabData = isEn
+    ? [{base:'good',upgrade:'excellent / outstanding / remarkable'},{base:'happy',upgrade:'delighted / thrilled / overjoyed'},{base:'said',upgrade:'whispered / exclaimed / murmured'},{base:'walked',upgrade:'strolled / marched / wandered'}]
+    : ['淅淅沥沥','踌躇','蹑手蹑脚','热泪盈眶','不约而同','恍然大悟','心旷神怡','刻骨铭心'];
+
+  let html = '';
+
+  // Outline
+  html += '<div class="result-section"><h3>📋 写作提纲</h3>';
+  outlineData.forEach((item, i) => {
+    html += `<div class="outline-item"><div class="outline-num">${i+1}</div><div><div class="outline-role">${item.role}</div><div class="outline-text">${item.point}</div></div></div>`;
+  });
+  html += '</div>';
+
+  // Good sentences
+  html += '<div class="result-section"><h3>✨ 好句参考</h3>';
+  sentenceData.forEach(s => {
+    html += `<div class="sentence-card"><div class="sentence-text">「${s.text}」</div><div class="sentence-meta"><span>📝 ${s.rhetoric}</span><span>📍 ${s.position}</span></div></div>`;
+  });
+  html += '</div>';
+
+  // Vocab
+  html += '<div class="result-section"><h3>📚 推荐好词</h3><div class="vocab-list">';
+  if (isEn) {
+    vocabData.forEach(v => { html += `<div style="width:100%;padding:8px 0;border-bottom:1px solid var(--border);font-size:14px"><strong style="color:var(--danger)">${v.base}</strong> → <strong style="color:var(--success)">${v.upgrade}</strong></div>`; });
+  } else {
+    vocabData.forEach(v => { html += `<div class="vocab-tag">${v}</div>`; });
+  }
+  html += '</div></div>';
+
+  // Action buttons
+  html += '<div style="display:flex;gap:12px;margin-top:24px"><button class="btn btn-primary btn-block" data-action="showPage" data-target="page-dashboard">👍 完成</button></div>';
+
+  resultEl.innerHTML = html;
+}
+
+// ==================== Review Mode (Report) ====================
+function generateReviewReport() {
+  const reportEl = document.getElementById('report-content');
+  reportEl.innerHTML = '<div style="text-align:center;padding:40px"><div class="typing-dots"><span></span><span></span><span></span></div><p style="color:var(--text3);margin-top:12px">AI 正在批改你的作文...</p></div>';
+
+  setTimeout(() => showReviewReport(currentComp), 2500);
+}
+
+function showReviewReport(comp) {
+  showPage('page-report');
+  const isEn = comp.lang === 'en';
+  const reportEl = document.getElementById('report-content');
+  const score = comp.score || Math.floor(Math.random() * 15) + 72;
+  const dims = {
+    '主题立意': Math.floor(Math.random()*10)+75,
+    '内容充实': Math.floor(Math.random()*15)+65,
+    '结构层次': Math.floor(Math.random()*10)+73,
+    '语言表达': Math.floor(Math.random()*12)+70,
+    '书写规范': Math.floor(Math.random()*8)+82
+  };
+
+  if (!comp.score) {
+    comp.score = score;
+    comp.status = 'completed';
+    saveComposition(comp);
+  }
+
+  const barColors = ['#6366f1','#8b5cf6','#a78bfa','#f59e0b','#22c55e'];
+
+  let html = '';
+  html += `<div class="score-circle"><div class="score-num">${score}</div><div class="score-label">综合得分</div></div>`;
+
+  // Dimensions
+  html += '<div class="card"><div class="card-title">📊 各维度得分</div>';
+  Object.entries(dims).forEach(([name, s], i) => {
+    html += `<div class="dim-bar"><div class="dim-header"><span class="dim-name">${name}</span><span class="dim-score">${s}</span></div><div class="bar-bg"><div class="bar-fill" style="width:${s}%;background:${barColors[i]}"></div></div></div>`;
+  });
+  html += '</div>';
+
+  // Highlights
+  html += '<div class="result-section"><h3>✅ 亮点</h3>';
+  const highlights = isEn
+    ? ['Good use of descriptive language in paragraph 2 - "the golden sunset painted the sky"','Clear structure with a strong opening and satisfying conclusion']
+    : ['第二段"雨丝织在灯光里"的比喻非常生动，画面感很强','结尾点题自然，从具体事件上升到人生感悟，升华得当','对话描写真实自然，能感受到人物的性格特点'];
+  highlights.forEach(h => { html += `<div class="highlight-item">✅ ${h}</div>`; });
+  html += '</div>';
+
+  // Suggestions
+  html += '<div class="result-section"><h3>⚠️ 改进建议</h3>';
+  const suggestions = isEn
+    ? ['Paragraph 3 needs more specific details - try adding sensory descriptions','Some sentences are too simple. Try combining them with conjunctions like "although", "while"','The conclusion could be stronger - consider ending with a thought-provoking question']
+    : ['第三段缺少心理描写，建议加入"我心想..."的内心独白，让读者感受到你的情感','\"很好看\"太笼统，建议换成具体的视觉描写，如颜色、形状、光影','第四段到第五段的过渡略显突兀，建议加一句承上启下的句子'];
+  suggestions.forEach(s => { html += `<div class="suggestion-item">💡 ${s}</div>`; });
+  html += '</div>';
+
+  // Examples
+  html += '<div class="result-section"><h3>✏️ 修改示例</h3>';
+  const examples = isEn
+    ? [{orig:'I was very happy when I saw my friend.',sug:'My heart leapt with joy the moment I caught sight of my old friend waving at me from across the street.',exp:'Replace generic "very happy" with specific physical and emotional details'}]
+    : [{orig:'妈妈来了，我很高兴。',sug:'妈妈撑着那把旧花伞出现在校门口，我的心像被温水浸泡一样，暖了起来。',exp:'用比喻替代笼统的"很高兴"，加入具体的视觉细节（旧花伞）'},{orig:'那天天气不好。',sug:'铅灰色的云层压得很低，风裹着细雨一阵阵扑过来。',exp:'用具体的颜色、动作描写替代"天气不好"这样的概括'}];
+  examples.forEach(e => {
+    html += `<div class="example-card"><div class="example-original">原句：${e.orig}</div><div class="example-suggested">建议：${e.sug}</div><div class="example-explain">💡 ${e.exp}</div></div>`;
+  });
+  html += '</div>';
+
+  // Comparison
+  html += '<div class="result-section"><h3>📈 与上次相比</h3>';
+  html += '<div class="comparison-item"><span class="comparison-up">↑ 语言表达 +8分</span> — 修辞运用有明显进步</div>';
+  html += '<div class="comparison-item"><span class="comparison-up">↑ 结构层次 +5分</span> — 段落安排更合理了</div>';
+  html += '<div class="comparison-item"><span class="comparison-down">↓ 内容充实 -3分</span> — 细节比上次少，需要多观察</div>';
+  html += '</div>';
+
+  html += '<button class="btn btn-primary btn-block btn-lg" data-action="showPage" data-target="page-dashboard" style="margin-top:20px">👍 知道了</button>';
+
+  reportEl.innerHTML = html;
+
+  // Animate bars
+  setTimeout(() => {
+    document.querySelectorAll('.bar-fill').forEach(bar => {
+      const w = bar.style.width;
+      bar.style.width = '0%';
+      setTimeout(() => bar.style.width = w, 100);
+    });
+  }, 100);
+}
+
+// ==================== Profile ====================
+function loadProfile() {
+  if (!currentUser) return;
+  document.getElementById('profile-name').value = currentUser.name;
+  document.getElementById('profile-email').value = currentUser.email;
+  document.getElementById('profile-grade').value = currentUser.grade || 5;
+  document.getElementById('profile-avatar').textContent = currentUser.name.charAt(0).toUpperCase();
+}
+
+function saveProfile() {
+  currentUser.name = document.getElementById('profile-name').value.trim();
+  currentUser.grade = parseInt(document.getElementById('profile-grade').value);
+  localStorage.setItem('wc_current', JSON.stringify(currentUser));
+  localStorage.setItem('wc_user_' + currentUser.email, JSON.stringify(currentUser));
+  toast('已保存！');
+}
+
+// ==================== Parent Dashboard ====================
+function loadParent() {
+  if (!currentUser || currentUser.role !== 'parent') return;
+  document.getElementById('parent-welcome').textContent = currentUser.name + '，您好！';
+
+  // Show bound children
+  const childEmails = currentUser.children || ['student@demo.com'];
+  const listEl = document.getElementById('parent-children-list');
+  listEl.innerHTML = childEmails.map(email => {
+    const child = demoUsers[email] || {name:'Bosco',grade:5};
+    const gradeNames = {3:'三年级',4:'四年级',5:'五年级',6:'六年级',7:'初一',8:'初二',9:'初三'};
+    return `<div class="child-card" data-action="showChildDetail" data-email="${email}"><div class="child-avatar">${child.name.charAt(0)}</div><div class="child-info"><h3>${child.name}</h3><p>${gradeNames[child.grade]||child.grade+'年级'} · 本周写了2篇</p></div><div style="margin-left:auto;color:var(--text3);font-size:20px">›</div></div>`;
+  }).join('');
+}
+
+function showChildDetail(email) {
+  const child = demoUsers[email] || {name:'Bosco',grade:5};
+  document.getElementById('parent-child-name').textContent = child.name;
+  document.getElementById('parent-child-detail').style.display = 'block';
+
+  // Render radar chart
+  setTimeout(() => drawRadarChart(), 200);
+
+  // Show works
+  const worksEl = document.getElementById('parent-works-list');
+  worksEl.innerHTML = demoHistory.slice(0, 3).map(c => `<div class="history-item"><div><div class="history-title">${c.lang==='en'?'🇬🇧':'🇨🇳'} ${c.title}</div><div class="history-meta">${c.date} · ${genreMap[c.genre]||c.genre}</div></div><div class="history-score">${c.score}</div></div>`).join('');
+
+  document.getElementById('parent-child-detail').scrollIntoView({behavior:'smooth'});
+}
+
+function bindChild() {
+  const email = prompt('请输入孩子的注册邮箱：');
+  if (email) {
+    toast('已向 ' + email + ' 发送绑定请求');
+  }
+}
+
+function showParentReport() {
+  toast('完整报告将在每周日通过邮件发送');
+}
+
+// ==================== Radar Chart (Canvas) ====================
+function drawRadarChart() {
+  const canvas = document.getElementById('radarCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const cx = W/2, cy = H/2 + 5, R = 75;
+
+  ctx.clearRect(0, 0, W, H);
+
+  const labels = ['主题立意','内容充实','结构层次','语言表达','书写规范'];
+  const scores = [80, 65, 78, 72, 88]; // current
+  const prevScores = [72, 68, 66, 64, 85]; // previous
+  const n = labels.length;
+
+  // Draw grid
+  for (let level = 1; level <= 5; level++) {
+    ctx.beginPath();
+    const r = R * level / 5;
+    for (let i = 0; i <= n; i++) {
+      const angle = (Math.PI * 2 * i / n) - Math.PI / 2;
+      const x = cx + r * Math.cos(angle);
+      const y = cy + r * Math.sin(angle);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  // Draw axes
+  for (let i = 0; i < n; i++) {
+    const angle = (Math.PI * 2 * i / n) - Math.PI / 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + R * Math.cos(angle), cy + R * Math.sin(angle));
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.stroke();
+  }
+
+  // Draw previous scores (faded)
+  ctx.beginPath();
+  prevScores.forEach((s, i) => {
+    const angle = (Math.PI * 2 * i / n) - Math.PI / 2;
+    const r = R * s / 100;
+    const x = cx + r * Math.cos(angle), y = cy + r * Math.sin(angle);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(248,113,113,.1)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(248,113,113,.4)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Draw current scores
+  ctx.beginPath();
+  scores.forEach((s, i) => {
+    const angle = (Math.PI * 2 * i / n) - Math.PI / 2;
+    const r = R * s / 100;
+    const x = cx + r * Math.cos(angle), y = cy + r * Math.sin(angle);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(99,102,241,.15)';
+  ctx.fill();
+  ctx.strokeStyle = '#6366f1';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Draw dots & labels
+  scores.forEach((s, i) => {
+    const angle = (Math.PI * 2 * i / n) - Math.PI / 2;
+    const r = R * s / 100;
+    const x = cx + r * Math.cos(angle), y = cy + r * Math.sin(angle);
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#6366f1';
+    ctx.fill();
+
+    // Label
+    const lx = cx + (R + 20) * Math.cos(angle);
+    const ly = cy + (R + 20) * Math.sin(angle);
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.fillStyle = '#64748b';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(labels[i], lx, ly);
+  });
+
+  // Legend
+  ctx.font = '10px -apple-system, sans-serif';
+  ctx.fillStyle = '#6366f1';
+  ctx.fillRect(W - 100, 8, 10, 10);
+  ctx.fillText('本周', W - 74, 14);
+  ctx.fillStyle = 'rgba(248,113,113,.6)';
+  ctx.fillRect(W - 100, 22, 10, 10);
+  ctx.fillStyle = '#64748b';
+  ctx.fillText('上周', W - 74, 28);
+}
+
+// ==================== Init ====================
+(function init() {
+  const saved = localStorage.getItem('wc_current');
+  if (saved) {
+    currentUser = JSON.parse(saved);
+    if (currentUser.role === 'parent') {
+      showPage('page-parent');
+    } else {
+      showPage('page-dashboard');
+    }
+  }
+})();
+
+// ==================== Global Event Delegation ====================
+document.addEventListener('click', function(e) {
+  var el = e.target;
+  // Walk up to find closest element with data-action (max 6 levels)
+  for (var i = 0; i < 6 && el && el !== document; i++) {
+    var action = el.getAttribute && el.getAttribute('data-action');
+    if (action) break;
+    el = el.parentElement;
+  }
+  if (!el || !el.getAttribute) return;
+  var action = el.getAttribute('data-action');
+  if (!action) return;
+
+  e.preventDefault();
+
+  switch (action) {
+    case 'showPage':
+      showPage(el.getAttribute('data-target'));
+      break;
+    case 'setRegRole':
+      el.parentElement.querySelectorAll('button').forEach(function(b) { b.classList.remove('active'); });
+      el.classList.add('active');
+      regRole = el.getAttribute('data-role');
+      document.getElementById('reg-grade-group').style.display = regRole === 'student' ? 'block' : 'none';
+      break;
+    case 'doRegister':
+      doRegister();
+      break;
+    case 'doLogin':
+      doLogin();
+      break;
+    case 'completeVerify':
+      completeVerify();
+      break;
+    case 'doLogout':
+      doLogout();
+      break;
+    case 'setWriteLang':
+      el.parentElement.querySelectorAll('button').forEach(function(b) { b.classList.remove('active'); });
+      el.classList.add('active');
+      setWriteLang(el, el.getAttribute('data-lang'));
+      break;
+    case 'setWriteMode':
+      el.parentElement.querySelectorAll('.mode-card').forEach(function(c) { c.classList.remove('active'); });
+      el.classList.add('active');
+      setWriteMode(el, el.getAttribute('data-mode'));
+      break;
+    case 'startWrite':
+      startWrite();
+      break;
+    case 'sendChatMsg':
+      sendChatMsg();
+      break;
+    case 'toggleVoice':
+      toggleVoice();
+      break;
+    case 'exitGuide':
+      exitGuide();
+      break;
+    case 'selectQuestion':
+      el.style.background = 'rgba(99,102,241,.2)';
+      document.getElementById('chat-input').value = '';
+      document.getElementById('chat-input').placeholder = '针对这个问题，说说你的想法...';
+      break;
+    case 'showGuideResultPage':
+      showGuideResultPage();
+      break;
+    case 'viewHistory':
+      viewHistory(el.getAttribute('data-id'));
+      break;
+    case 'saveProfile':
+      saveProfile();
+      break;
+    case 'bindChild':
+      bindChild();
+      break;
+    case 'showChildDetail':
+      showChildDetail(el.getAttribute('data-email'));
+      break;
+    case 'showParentReport':
+      showParentReport();
+      break;
+    case 'parentSave':
+      toast('已保存');
+      break;
+  }
+});
+
+// textarea auto-resize via input event
+document.addEventListener('input', function(e) {
+  if (e.target.id === 'chat-input') {
+    autoResize(e.target);
+  }
+});
+</script>
+</body>
+</html>
