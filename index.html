@@ -272,8 +272,20 @@ input,textarea,select{font-family:inherit;font-size:inherit;outline:none}
     <button class="btn btn-out btn-block" onclick="logoutUser()">切换用户</button>
   </div>
   <div class="card">
+    <div class="card-title">🔑 AI 设置</div>
+    <div class="form-group">
+      <label>Gemini API Key</label>
+      <div style="display:flex;gap:8px">
+        <input id="myApiKey" type="password" placeholder="输入 API Key" style="flex:1">
+        <button class="btn btn-pri btn-sm" onclick="saveApiKey()">保存</button>
+      </div>
+      <div style="font-size:11px;color:var(--txt2);margin-top:4px">免费获取：aistudio.google.com → Get API Key</div>
+    </div>
+    <button class="btn btn-out btn-block btn-sm" onclick="testApiKey()" id="testApiBtn">🔍 测试连接</button>
+  </div>
+  <div class="card">
     <div class="card-title">ℹ️ 关于</div>
-    <div class="card-desc">WriteCoach v2.0<br>AI 驱动的作文辅助工具<br>好作文是问出来的 ✍️</div>
+    <div class="card-desc">WriteCoach v2.1<br>AI 驱动的作文辅助工具<br>好作文是问出来的 ✍️</div>
   </div>
 </div>
 
@@ -287,20 +299,63 @@ input,textarea,select{font-family:inherit;font-size:inherit;outline:none}
 
 <script>
 // ============ GEMINI API ============
-var _GK=['AIza','SyCu','ghby','oGMg','9fOA','PoH0','2J39','gG77','q6n9','q_k'];
-function _gk(){return _GK.join('');}
+// API Key 从 localStorage 读取，不再硬编码在源码中
 var GEMINI_URL='https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=';
 
-function callGemini(prompt){
-  return fetch(GEMINI_URL+_gk(),{
+function getApiKey(){
+  var k=localStorage.getItem('wc_api_key')||'';
+  if(!k){
+    k=prompt('请输入 Gemini API Key（可在 aistudio.google.com 免费获取）：');
+    if(k&&k.trim()){localStorage.setItem('wc_api_key',k.trim());k=k.trim();}
+  }
+  return k;
+}
+function clearApiKey(){localStorage.removeItem('wc_api_key');}
+
+var _abortCtrl=null;
+
+function callGemini(prompt,retries){
+  retries=retries||2;
+  var key=getApiKey();
+  if(!key)return Promise.reject(new Error('未设置 API Key，请在"我的"页面设置'));
+
+  // 取消上一次未完成的请求
+  if(_abortCtrl){try{_abortCtrl.abort();}catch(e){}}
+  _abortCtrl=new AbortController();
+  var timeoutId=setTimeout(function(){_abortCtrl.abort();},30000);
+
+  return fetch(GEMINI_URL+key,{
     method:'POST',
     headers:{'Content-Type':'application/json'},
+    signal:_abortCtrl.signal,
     body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.7,maxOutputTokens:2048}})
   }).then(function(r){
-    if(!r.ok)throw new Error('API '+r.status);
+    clearTimeout(timeoutId);
+    if(r.status===400)throw new Error('请求格式错误(400)，请重试');
+    if(r.status===403||r.status===401)throw new Error('API Key 无效或已过期(' + r.status + ')，请在"我的"页面更新 Key');
+    if(r.status===429)throw new Error('请求太频繁(429)，请稍等再试');
+    if(r.status===503)throw new Error('AI 服务暂时不可用(503)，请稍后重试');
+    if(!r.ok)throw new Error('API 错误('+r.status+')');
     return r.json();
   }).then(function(d){
-    return d.candidates[0].content.parts[0].text;
+    // 处理内容安全过滤
+    if(d.candidates&&d.candidates[0]){
+      var c=d.candidates[0];
+      if(c.finishReason==='SAFETY')throw new Error('内容被安全过滤，请换一种表述');
+      if(c.content&&c.content.parts&&c.content.parts[0]&&c.content.parts[0].text){
+        return c.content.parts[0].text;
+      }
+    }
+    if(d.error)throw new Error(d.error.message||'API 返回错误');
+    throw new Error('AI 返回了空响应，请重试');
+  }).catch(function(err){
+    clearTimeout(timeoutId);
+    if(err.name==='AbortError')throw new Error('请求超时(30秒)，请检查网络后重试');
+    // 重试逻辑（仅对网络错误和5xx重试）
+    if(retries>0&&(err.message.indexOf('网络')>=0||err.message.indexOf('503')>=0||err.message.indexOf('Failed')>=0||err.message.indexOf('Load failed')>=0)){
+      return new Promise(function(resolve){setTimeout(resolve,1500);}).then(function(){return callGemini(prompt,retries-1);});
+    }
+    throw err;
   });
 }
 
@@ -374,6 +429,9 @@ function renderHome(){
   document.getElementById('hUser').textContent=CUR_USER;
   document.getElementById('myName').value=CUR_USER;
   document.getElementById('myGrade').value=gradeName(db.profile.grade);
+  // 显示当前 API Key 状态
+  var keyEl=document.getElementById('myApiKey');
+  if(keyEl)keyEl.value=localStorage.getItem('wc_api_key')?'••••••••':'';
   var essays=db.essays||[];
   document.getElementById('sTotal').textContent=essays.length;
   var graded=essays.filter(function(e){return e.score;});
@@ -541,7 +599,14 @@ function sendCoachMsg(){
     }
   }).catch(function(err){
     typing.remove();
-    addMsg('ai',(curEssay.lang==='cn'?'⚠️ AI 连接失败，请稍后重试。错误：':'⚠️ AI connection failed: ')+err.message);
+    var msg=err.message||'';
+    var hint=curEssay.lang==='cn'?
+      '⚠️ AI 连接失败：'+msg:
+      '⚠️ AI connection failed: '+msg;
+    if(msg.indexOf('API Key')>=0||msg.indexOf('401')>=0||msg.indexOf('403')>=0){
+      hint+=curEssay.lang==='cn'?'\n\n💡 请到"我的"页面设置 API Key':'\n\n💡 Please set your API Key in "My" page';
+    }
+    addMsg('ai',hint);
   });
 }
 function buildCoachPrompt(userAnswers){
@@ -583,7 +648,12 @@ function submitEssay(){
     db.essays.push(curEssay);saveDB();
     renderReport(report);
   }).catch(function(err){
-    document.getElementById('reportArea').innerHTML='<div class="card"><p style="color:var(--err);text-align:center">⚠️ 批改失败：'+esc(err.message)+'</p><button class="btn btn-out btn-block" onclick="goBack()" style="margin-top:12px">返回修改</button></div>';
+    var msg=err.message||'';
+    var hint=msg;
+    if(msg.indexOf('API Key')>=0||msg.indexOf('401')>=0||msg.indexOf('403')>=0){
+      hint+='\n\n💡 请到"我的"页面设置 API Key';
+    }
+    document.getElementById('reportArea').innerHTML='<div class="card"><p style="color:var(--err);text-align:center">⚠️ 批改失败：'+esc(hint)+'</p><button class="btn btn-out btn-block" onclick="goBack()" style="margin-top:12px">返回修改</button></div>';
   });
 }
 function buildGradePrompt(){
@@ -673,6 +743,32 @@ function toggleVoice(btnId,lang){
   else{recognition.lang=lang;try{recognition.start();btn.classList.add('rec');btn.textContent='⏹';}catch(e){alert('录音启动失败，请重试');}}
 }
 function stopVoice(){document.querySelectorAll('.voice-btn.rec').forEach(function(b){b.classList.remove('rec');b.textContent='🎤';});}
+
+// ============ API KEY MANAGEMENT ============
+function saveApiKey(){
+  var el=document.getElementById('myApiKey');
+  var k=el.value.trim();
+  if(!k){clearApiKey();el.value='';alert('API Key 已清除');return;}
+  localStorage.setItem('wc_api_key',k);
+  el.type='text';el.value='••••••••';
+  setTimeout(function(){el.type='password';},2000);
+  alert('API Key 已保存 ✅');
+}
+function testApiKey(){
+  var btn=document.getElementById('testApiBtn');
+  btn.disabled=true;btn.textContent='测试中...';
+  callGemini('Reply with exactly: OK',0).then(function(r){
+    btn.disabled=false;btn.textContent='🔍 测试连接';
+    if(r&&r.trim().indexOf('OK')>=0){
+      alert('✅ 连接成功！AI 服务可用');
+    }else{
+      alert('⚠️ 连接成功但响应异常：'+(r||'').slice(0,100));
+    }
+  }).catch(function(err){
+    btn.disabled=false;btn.textContent='🔍 测试连接';
+    alert('❌ 连接失败：'+err.message);
+  });
+}
 
 // ============ INIT ============
 if(CUR_USER&&getUsers().find(function(u){return u.name===CUR_USER;})){loadDB();enterHome();}
