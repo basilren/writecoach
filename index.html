@@ -139,6 +139,9 @@ input,textarea,select{font-family:inherit;font-size:inherit;outline:none}
 .tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
 .tag-cn{background:#fef3c7;color:#92400e}
 .tag-en{background:#dbeafe;color:#1e40af}
+
+/* Test result */
+#testResult{padding:8px 12px;border-radius:8px;background:#f8fafc;line-height:1.5;word-break:break-all}
 </style>
 </head>
 <body>
@@ -281,11 +284,25 @@ input,textarea,select{font-family:inherit;font-size:inherit;outline:none}
       </div>
       <div style="font-size:11px;color:var(--txt2);margin-top:4px">免费获取：aistudio.google.com → Get API Key</div>
     </div>
+    <div class="form-group">
+      <label>API 代理地址（可选）</label>
+      <div style="display:flex;gap:8px">
+        <input id="myApiUrl" type="url" placeholder="默认直连 Google，大陆用户需填代理" style="flex:1">
+        <button class="btn btn-pri btn-sm" onclick="saveApiUrl()">保存</button>
+      </div>
+      <div style="font-size:11px;color:var(--txt2);margin-top:4px">
+        ⚠️ 大陆网络无法直连 Google API，需设置代理。<br>
+        💡 免费方案：用 Cloudflare Worker 反代 Gemini API<br>
+        📖 教程：搜索"Cloudflare Worker 代理 Gemini API"<br>
+        格式示例：https://your-worker.your-name.workers.dev/v1beta/models/gemini-2.0-flash:generateContent
+      </div>
+    </div>
     <button class="btn btn-out btn-block btn-sm" onclick="testApiKey()" id="testApiBtn">🔍 测试连接</button>
+    <div id="testResult" style="margin-top:8px;font-size:12px;display:none"></div>
   </div>
   <div class="card">
     <div class="card-title">ℹ️ 关于</div>
-    <div class="card-desc">WriteCoach v2.1<br>AI 驱动的作文辅助工具<br>好作文是问出来的 ✍️</div>
+    <div class="card-desc">WriteCoach v2.2<br>AI 驱动的作文辅助工具<br>好作文是问出来的 ✍️</div>
   </div>
 </div>
 
@@ -300,17 +317,15 @@ input,textarea,select{font-family:inherit;font-size:inherit;outline:none}
 <script>
 // ============ GEMINI API ============
 // API Key 从 localStorage 读取，不再硬编码在源码中
-var GEMINI_URL='https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=';
+var DEFAULT_API_URL='https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
-function getApiKey(){
-  var k=localStorage.getItem('wc_api_key')||'';
-  if(!k){
-    k=prompt('请输入 Gemini API Key（可在 aistudio.google.com 免费获取）：');
-    if(k&&k.trim()){localStorage.setItem('wc_api_key',k.trim());k=k.trim();}
-  }
-  return k;
+function getApiUrl(){
+  return localStorage.getItem('wc_api_url')||DEFAULT_API_URL;
 }
-function clearApiKey(){localStorage.removeItem('wc_api_key');}
+function getApiKey(){
+  return localStorage.getItem('wc_api_key')||'';
+}
+function clearApiKey(){localStorage.removeItem('wc_api_key');localStorage.removeItem('wc_api_url');}
 
 var _abortCtrl=null;
 
@@ -319,14 +334,24 @@ function callGemini(prompt,retries){
   var key=getApiKey();
   if(!key)return Promise.reject(new Error('未设置 API Key，请在"我的"页面设置'));
 
+  var baseUrl=getApiUrl().replace(/\/+$/,'');
+  // 判断是代理模式还是直连模式
+  // 代理模式：URL 不含 googleapis.com，key 作为 header 或 query 取决于代理
+  // 直连模式：原始 Google API，key 作为 query 参数
+  var isGoogleDirect=baseUrl.indexOf('googleapis.com')>=0;
+  var fetchUrl=isGoogleDirect?baseUrl+'?key='+key:baseUrl;
+  var headers={'Content-Type':'application/json'};
+  // 代理模式：key 放在 x-goog-api-key header
+  if(!isGoogleDirect){headers['x-goog-api-key']=key;}
+
   // 取消上一次未完成的请求
   if(_abortCtrl){try{_abortCtrl.abort();}catch(e){}}
   _abortCtrl=new AbortController();
   var timeoutId=setTimeout(function(){_abortCtrl.abort();},30000);
 
-  return fetch(GEMINI_URL+key,{
+  return fetch(fetchUrl,{
     method:'POST',
-    headers:{'Content-Type':'application/json'},
+    headers:headers,
     signal:_abortCtrl.signal,
     body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.7,maxOutputTokens:2048}})
   }).then(function(r){
@@ -351,8 +376,14 @@ function callGemini(prompt,retries){
   }).catch(function(err){
     clearTimeout(timeoutId);
     if(err.name==='AbortError')throw new Error('请求超时(30秒)，请检查网络后重试');
+    // 判断是否为网络不可达（中国大陆无法直连 Google）
+    var msg=err.message||'';
+    var isNetworkError=!err.status&&(msg.indexOf('Failed')>=0||msg.indexOf('Load failed')>=0||msg.indexOf('NetworkError')>=0||msg.indexOf('fetch')>=0||msg.indexOf('网络')>=0||msg==='');
+    if(isNetworkError&&isGoogleDirect){
+      throw new Error('无法连接 Google AI 服务。大陆网络无法直连 Google API，请在"我的"页面设置代理地址，或使用 VPN。详见设置页"API 代理"说明。');
+    }
     // 重试逻辑（仅对网络错误和5xx重试）
-    if(retries>0&&(err.message.indexOf('网络')>=0||err.message.indexOf('503')>=0||err.message.indexOf('Failed')>=0||err.message.indexOf('Load failed')>=0)){
+    if(retries>0&&(msg.indexOf('503')>=0||msg.indexOf('Failed')>=0||msg.indexOf('Load failed')>=0)){
       return new Promise(function(resolve){setTimeout(resolve,1500);}).then(function(){return callGemini(prompt,retries-1);});
     }
     throw err;
@@ -432,6 +463,12 @@ function renderHome(){
   // 显示当前 API Key 状态
   var keyEl=document.getElementById('myApiKey');
   if(keyEl)keyEl.value=localStorage.getItem('wc_api_key')?'••••••••':'';
+  var urlEl=document.getElementById('myApiUrl');
+  if(urlEl){
+    var savedUrl=localStorage.getItem('wc_api_url');
+    urlEl.value=savedUrl||'';
+    urlEl.placeholder=savedUrl?'':'默认直连 Google，大陆用户需填代理';
+  }
   var essays=db.essays||[];
   document.getElementById('sTotal').textContent=essays.length;
   var graded=essays.filter(function(e){return e.score;});
@@ -748,25 +785,58 @@ function stopVoice(){document.querySelectorAll('.voice-btn.rec').forEach(functio
 function saveApiKey(){
   var el=document.getElementById('myApiKey');
   var k=el.value.trim();
-  if(!k){clearApiKey();el.value='';alert('API Key 已清除');return;}
+  if(!k){clearApiKey();el.value='';showTestResult('⚠️','API Key 已清除','var(--warn)');return;}
+  // 如果显示的是占位符，不覆盖已保存的 key
+  if(k==='••••••••'){showTestResult('ℹ️','Key 未变化，无需重复保存','var(--txt2)');return;}
   localStorage.setItem('wc_api_key',k);
   el.type='text';el.value='••••••••';
   setTimeout(function(){el.type='password';},2000);
-  alert('API Key 已保存 ✅');
+  showTestResult('✅','API Key 已保存','var(--ok)');
+}
+function saveApiUrl(){
+  var el=document.getElementById('myApiUrl');
+  var url=el.value.trim();
+  if(!url){
+    localStorage.removeItem('wc_api_url');
+    showTestResult('ℹ️','已恢复默认（直连 Google API）','var(--txt2)');
+    return;
+  }
+  // 简单验证 URL 格式
+  if(!url.startsWith('http://')&&!url.startsWith('https://')){
+    showTestResult('❌','URL 必须以 http:// 或 https:// 开头','var(--err)');
+    return;
+  }
+  localStorage.setItem('wc_api_url',url);
+  showTestResult('✅','代理地址已保存','var(--ok)');
+}
+function showTestResult(icon,msg,color){
+  var el=document.getElementById('testResult');
+  if(!el)return;
+  el.style.display='block';
+  el.style.color=color||'var(--txt)';
+  el.textContent=icon+' '+msg;
+  if(icon!=='🔍')setTimeout(function(){el.style.display='none';},5000);
 }
 function testApiKey(){
   var btn=document.getElementById('testApiBtn');
+  var key=getApiKey();
+  if(!key){
+    showTestResult('❌','请先输入 API Key','var(--err)');
+    return;
+  }
   btn.disabled=true;btn.textContent='测试中...';
+  showTestResult('🔍','正在连接 '+getApiUrl().split('/v1beta')[0].split('//')[1]+'...','var(--txt2)');
   callGemini('Reply with exactly: OK',0).then(function(r){
     btn.disabled=false;btn.textContent='🔍 测试连接';
     if(r&&r.trim().indexOf('OK')>=0){
-      alert('✅ 连接成功！AI 服务可用');
+      showTestResult('✅','连接成功！AI 服务可用','var(--ok)');
     }else{
-      alert('⚠️ 连接成功但响应异常：'+(r||'').slice(0,100));
+      showTestResult('⚠️','连接成功但响应异常：'+(r||'').slice(0,80),'var(--warn)');
     }
   }).catch(function(err){
     btn.disabled=false;btn.textContent='🔍 测试连接';
-    alert('❌ 连接失败：'+err.message);
+    var msg=err.message||'未知错误';
+    showTestResult('❌','连接失败：'+msg,'var(--err)');
   });
 }
 
