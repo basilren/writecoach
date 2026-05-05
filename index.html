@@ -277,24 +277,22 @@ input,textarea,select{font-family:inherit;font-size:inherit;outline:none}
   <div class="card">
     <div class="card-title">🔑 AI 设置</div>
     <div class="form-group">
-      <label>Gemini API Key</label>
+      <label>智谱AI API Key</label>
       <div style="display:flex;gap:8px">
         <input id="myApiKey" type="password" placeholder="输入 API Key" style="flex:1">
         <button class="btn btn-pri btn-sm" onclick="saveApiKey()">保存</button>
       </div>
-      <div style="font-size:11px;color:var(--txt2);margin-top:4px">免费获取：aistudio.google.com → Get API Key</div>
+      <div style="font-size:11px;color:var(--txt2);margin-top:4px">免费获取：open.bigmodel.cn → API Keys<br>模型：GLM-4-Flash（免费额度）</div>
     </div>
     <div class="form-group">
-      <label>API 代理地址（可选）</label>
+      <label>API 地址（一般无需修改）</label>
       <div style="display:flex;gap:8px">
-        <input id="myApiUrl" type="url" placeholder="默认直连 Google，大陆用户需填代理" style="flex:1">
+        <input id="myApiUrl" type="url" placeholder="默认直连智谱AI，国内可直接访问" style="flex:1">
         <button class="btn btn-pri btn-sm" onclick="saveApiUrl()">保存</button>
       </div>
       <div style="font-size:11px;color:var(--txt2);margin-top:4px">
-        ⚠️ 大陆网络无法直连 Google API，需设置代理。<br>
-        💡 免费方案：用 Cloudflare Worker 反代 Gemini API<br>
-        📖 教程：搜索"Cloudflare Worker 代理 Gemini API"<br>
-        格式示例：https://your-worker.your-name.workers.dev/v1beta/models/gemini-2.0-flash:generateContent
+        ✅ 智谱AI 国内可直连，无需代理<br>
+        默认地址：https://open.bigmodel.cn/api/paas/v4/chat/completions
       </div>
     </div>
     <button class="btn btn-out btn-block btn-sm" onclick="testApiKey()" id="testApiBtn">🔍 测试连接</button>
@@ -302,7 +300,7 @@ input,textarea,select{font-family:inherit;font-size:inherit;outline:none}
   </div>
   <div class="card">
     <div class="card-title">ℹ️ 关于</div>
-    <div class="card-desc">WriteCoach v2.2<br>AI 驱动的作文辅助工具<br>好作文是问出来的 ✍️</div>
+    <div class="card-desc">WriteCoach v3.0<br>AI 驱动的作文辅助工具（智谱GLM）<br>好作文是问出来的 ✍️</div>
   </div>
 </div>
 
@@ -315,9 +313,10 @@ input,textarea,select{font-family:inherit;font-size:inherit;outline:none}
 </div>
 
 <script>
-// ============ GEMINI API ============
-// API Key 从 localStorage 读取，不再硬编码在源码中
-var DEFAULT_API_URL='https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+// ============ GLM (智谱AI) API ============
+// API Key 从 localStorage 读取
+var DEFAULT_API_URL='https://open.bigmodel.cn/api/paas/v4/chat/completions';
+var GLM_MODEL='glm-4-flash';
 
 function getApiUrl(){
   return localStorage.getItem('wc_api_url')||DEFAULT_API_URL;
@@ -329,62 +328,55 @@ function clearApiKey(){localStorage.removeItem('wc_api_key');localStorage.remove
 
 var _abortCtrl=null;
 
-function callGemini(prompt,retries){
+function callGLM(prompt,retries){
   retries=retries||2;
   var key=getApiKey();
   if(!key)return Promise.reject(new Error('未设置 API Key，请在"我的"页面设置'));
 
   var baseUrl=getApiUrl().replace(/\/+$/,'');
-  // 判断是代理模式还是直连模式
-  // 代理模式：URL 不含 googleapis.com，key 作为 header 或 query 取决于代理
-  // 直连模式：原始 Google API，key 作为 query 参数
-  var isGoogleDirect=baseUrl.indexOf('googleapis.com')>=0;
-  var fetchUrl=isGoogleDirect?baseUrl+'?key='+key:baseUrl;
-  var headers={'Content-Type':'application/json'};
-  // 代理模式：key 放在 x-goog-api-key header
-  if(!isGoogleDirect){headers['x-goog-api-key']=key;}
 
   // 取消上一次未完成的请求
   if(_abortCtrl){try{_abortCtrl.abort();}catch(e){}}
   _abortCtrl=new AbortController();
   var timeoutId=setTimeout(function(){_abortCtrl.abort();},30000);
 
-  return fetch(fetchUrl,{
+  return fetch(baseUrl,{
     method:'POST',
-    headers:headers,
+    headers:{
+      'Content-Type':'application/json',
+      'Authorization':'Bearer '+key
+    },
     signal:_abortCtrl.signal,
-    body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.7,maxOutputTokens:2048}})
+    body:JSON.stringify({
+      model:GLM_MODEL,
+      messages:[{role:'user',content:prompt}],
+      temperature:0.7,
+      max_tokens:2048
+    })
   }).then(function(r){
     clearTimeout(timeoutId);
     if(r.status===400)throw new Error('请求格式错误(400)，请重试');
-    if(r.status===403||r.status===401)throw new Error('API Key 无效或已过期(' + r.status + ')，请在"我的"页面更新 Key');
+    if(r.status===401)throw new Error('API Key 无效或已过期(401)，请在"我的"页面更新 Key');
+    if(r.status===403)throw new Error('没有权限访问该模型(403)，请检查 API Key 权限');
     if(r.status===429)throw new Error('请求太频繁(429)，请稍等再试');
     if(r.status===503)throw new Error('AI 服务暂时不可用(503)，请稍后重试');
     if(!r.ok)throw new Error('API 错误('+r.status+')');
     return r.json();
   }).then(function(d){
-    // 处理内容安全过滤
-    if(d.candidates&&d.candidates[0]){
-      var c=d.candidates[0];
-      if(c.finishReason==='SAFETY')throw new Error('内容被安全过滤，请换一种表述');
-      if(c.content&&c.content.parts&&c.content.parts[0]&&c.content.parts[0].text){
-        return c.content.parts[0].text;
-      }
+    // OpenAI 兼容格式响应解析
+    if(d.choices&&d.choices[0]&&d.choices[0].message){
+      var content=d.choices[0].message.content;
+      if(content)return content;
     }
     if(d.error)throw new Error(d.error.message||'API 返回错误');
     throw new Error('AI 返回了空响应，请重试');
   }).catch(function(err){
     clearTimeout(timeoutId);
     if(err.name==='AbortError')throw new Error('请求超时(30秒)，请检查网络后重试');
-    // 判断是否为网络不可达（中国大陆无法直连 Google）
     var msg=err.message||'';
-    var isNetworkError=!err.status&&(msg.indexOf('Failed')>=0||msg.indexOf('Load failed')>=0||msg.indexOf('NetworkError')>=0||msg.indexOf('fetch')>=0||msg.indexOf('网络')>=0||msg==='');
-    if(isNetworkError&&isGoogleDirect){
-      throw new Error('无法连接 Google AI 服务。大陆网络无法直连 Google API，请在"我的"页面设置代理地址，或使用 VPN。详见设置页"API 代理"说明。');
-    }
     // 重试逻辑（仅对网络错误和5xx重试）
-    if(retries>0&&(msg.indexOf('503')>=0||msg.indexOf('Failed')>=0||msg.indexOf('Load failed')>=0)){
-      return new Promise(function(resolve){setTimeout(resolve,1500);}).then(function(){return callGemini(prompt,retries-1);});
+    if(retries>0&&(msg.indexOf('503')>=0||msg.indexOf('Failed')>=0||msg.indexOf('Load failed')>=0||msg.indexOf('NetworkError')>=0)){
+      return new Promise(function(resolve){setTimeout(resolve,1500);}).then(function(){return callGLM(prompt,retries-1);});
     }
     throw err;
   });
@@ -467,7 +459,7 @@ function renderHome(){
   if(urlEl){
     var savedUrl=localStorage.getItem('wc_api_url');
     urlEl.value=savedUrl||'';
-    urlEl.placeholder=savedUrl?'':'默认直连 Google，大陆用户需填代理';
+    urlEl.placeholder=savedUrl?'':'默认直连智谱AI，国内可直接访问';
   }
   var essays=db.essays||[];
   document.getElementById('sTotal').textContent=essays.length;
@@ -798,7 +790,7 @@ function saveApiUrl(){
   var url=el.value.trim();
   if(!url){
     localStorage.removeItem('wc_api_url');
-    showTestResult('ℹ️','已恢复默认（直连 Google API）','var(--txt2)');
+    showTestResult('ℹ️','已恢复默认（直连智谱AI）','var(--txt2)');
     return;
   }
   // 简单验证 URL 格式
@@ -825,8 +817,8 @@ function testApiKey(){
     return;
   }
   btn.disabled=true;btn.textContent='测试中...';
-  showTestResult('🔍','正在连接 '+getApiUrl().split('/v1beta')[0].split('//')[1]+'...','var(--txt2)');
-  callGemini('Reply with exactly: OK',0).then(function(r){
+  showTestResult('🔍','正在连接 '+getApiUrl().split('/api/')[0].split('//')[1]+'...','var(--txt2)');
+  callGLM('Reply with exactly: OK',0).then(function(r){
     btn.disabled=false;btn.textContent='🔍 测试连接';
     if(r&&r.trim().indexOf('OK')>=0){
       showTestResult('✅','连接成功！AI 服务可用','var(--ok)');
